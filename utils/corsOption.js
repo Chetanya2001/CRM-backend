@@ -5,6 +5,7 @@ const allowedOrigins = [
   "http://43.204.111.78",
   "http://ec2-43-204-111-78.ap-south-1.compute.amazonaws.com",
   "https://crm-frontend-43gksnlid-ashishs-projects-22853570.vercel.app",
+  "https://crm-frontend-delta-ebon.vercel.app",
 ];
 
 module.exports = {
