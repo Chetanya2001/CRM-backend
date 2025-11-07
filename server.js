@@ -16,38 +16,48 @@ const { initializeNotificationHelper } = require("./utils/notificationHelper");
 const app = express();
 const server = http.createServer(app);
 
-// ✅ CORS must be applied BEFORE any routes or middleware
+// ✅ Allowed frontend origins
 const allowedOrigins = [
   "http://localhost:3000",
   "https://crm-frontend-delta-ebon.vercel.app",
 ];
 
-// Apply CORS globally first
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.warn(`❌ CORS blocked: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+// ✅ Apply CORS globally — must come FIRST
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // Allow mobile/curl
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`❌ CORS blocked: ${origin}`);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
-// ✅ Handle preflight requests globally
-app.options("*", cors());
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // ✅ Preflight handler
 
-// Middlewares
+// ✅ Ensure CORS headers on all responses (extra safety)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Credentials", "true");
+  }
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  next();
+});
+
+// ✅ Core middlewares
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ Log requests
+// ✅ Log all requests
 app.use((req, res, next) => {
   console.log("📥 [REQUEST]");
   console.log("Method:", req.method);
