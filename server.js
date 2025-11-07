@@ -1,6 +1,7 @@
 require("dotenv").config();
 require("./cron/notificationCleaner");
 require("./cron/blacklistExpired");
+
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
@@ -11,21 +12,63 @@ const notifyUpcomingMeetings = require("./cron/meetingNotifier");
 const notifyScheduledFollowups = require("./cron/followupNotifier");
 const { getTenantDB } = require("./config/sequelizeManager");
 const { initializeNotificationHelper } = require("./utils/notificationHelper");
-const corsOptions = require("./utils/corsOption");
+
 const app = express();
 const server = http.createServer(app);
+
+// ✅ CORS must be applied BEFORE any routes or middleware
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://crm-frontend-delta-ebon.vercel.app",
+];
+
+// Apply CORS globally first
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn(`❌ CORS blocked: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// ✅ Handle preflight requests globally
+app.options("*", cors());
+
+// Middlewares
+app.use(express.json());
+app.use(cookieParser());
+
+// ✅ Log requests
+app.use((req, res, next) => {
+  console.log("📥 [REQUEST]");
+  console.log("Method:", req.method);
+  console.log("URL:", req.originalUrl);
+  console.log("Origin:", req.headers.origin);
+  next();
+});
+
+// ✅ Test route
+app.get("/api/ping", (req, res) => {
+  res.send("✅ Backend is reachable!");
+});
+
+// =============== SOCKET.IO ===============
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:3000",
-      "https://crm-frontend-delta-ebon.vercel.app",
-    ],
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   },
 });
-
-const PORT = process.env.PORT || 5000;
 
 // Attach io to request object
 app.use((req, res, next) => {
@@ -33,34 +76,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
-app.use(express.json());
-app.use(cookieParser());
-app.use((req, res, next) => {
-  console.log("📥 [REQUEST]");
-  console.log("Method:", req.method);
-  console.log("URL:", req.originalUrl);
-  console.log("Headers:", req.headers);
-  console.log("Body:", req.body);
-  next();
-});
-app.get("/api/ping", (req, res) => {
-  res.send("✅ Backend is reachable!");
-});
-
-// 🔐 Middleware for protected routes
+// =============== ROUTES ===============
 const auth = require("./middleware/auth");
-const authMaster = require("./middleware/authMaster");
 const tenantResolver = require("./middleware/tenantResolver");
 
-// 📦 Routes
-app.use("/api/masteruser", require("./routes/MasterUser.routes")); // public login/signup
-app.use("/api/company", require("./routes/Company.routes")); // includes both public & protected
+app.use("/api/masteruser", require("./routes/MasterUser.routes"));
+app.use("/api/company", require("./routes/Company.routes"));
 app.use("/api/crew", auth(), tenantResolver, require("./routes/Agents.routes"));
-
-// Tenant routes
 app.use("/api", tenantResolver, require("./routes/User.routes"));
 app.use("/api/manager", tenantResolver, require("./routes/Manager.routes"));
 app.use("/api/hr", tenantResolver, require("./routes/Hr.routes"));
@@ -156,7 +178,6 @@ app.use(
   require("./routes/ProcessPerson.routes")
 );
 app.use("/api/customer", tenantResolver, require("./routes/Customer.routes"));
-//app.use("/api/email", tenantResolver, require("./routes/EmailTemplate.routes"));
 app.use(
   "/api/revenue",
   tenantResolver,
@@ -181,19 +202,13 @@ app.use(
 );
 app.use("/api", auth(), tenantResolver, require("./routes/Calendar.routes"));
 app.use("/api", auth(), tenantResolver, require("./routes/UserStatus.routes"));
-
-// lead check
 app.use("/api", tenantResolver, require("./routes/leadCheck.routes"));
-
-// Eod report
 app.use("/api", tenantResolver, require("./routes/Eod.routes"));
-
 app.use(
   "/api/customer",
   tenantResolver,
   require("./routes/CustomerDocuments.routes")
 );
-
 app.use(
   "/api/template",
   auth(),
@@ -261,14 +276,12 @@ app.use(
   require("./routes/Payroll.routes")
 );
 
-// 🧠 Store connected users
+// =============== SOCKET & CRON SETUP ===============
 const connectedUsers = {};
-global.connectedUsers = connectedUsers; // ✅ Attach to global
+global.connectedUsers = connectedUsers;
 
-// Initialize Notification System
 initializeNotificationHelper(io, connectedUsers);
 
-// 🔌 SOCKET.IO EVENTS
 io.on("connection", (socket) => {
   console.log("🟢 New socket connection:", socket.id);
 
@@ -316,19 +329,18 @@ io.on("connection", (socket) => {
   });
 });
 
-// ⏰ CRON JOB: Schedule meeting notification checker every minute
 cron.schedule("* * * * *", async () => {
   console.log("⏰ Cron job running for meeting notifications...");
   await notifyUpcomingMeetings();
-  //To notify executive about a followup or call before 2 minutes by sending a notification
   await notifyScheduledFollowups();
 });
 
+// =============== START SERVER ===============
+const PORT = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== "test") {
   server.listen(PORT, () =>
     console.log(`🚀 Server running on http://localhost:${PORT}`)
   );
 }
-module.exports = {
-  app,
-};
+
+module.exports = { app };
