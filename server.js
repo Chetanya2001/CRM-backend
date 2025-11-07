@@ -14,7 +14,16 @@ const { initializeNotificationHelper } = require("./utils/notificationHelper");
 const corsOptions = require("./utils/corsOption");
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: corsOptions });
+const io = new Server(server, {
+  cors: {
+    origin: [
+      "http://localhost:3000",
+      "https://crm-frontend-delta-ebon.vercel.app",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+  },
+});
 
 const PORT = process.env.PORT || 5000;
 
