@@ -8,33 +8,37 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cookieParser = require("cookie-parser");
 const cron = require("node-cron");
-const corsOptions = require("./utils/corsOption"); // ✅ import from file
+const corsOptions = require("./utils/corsOption"); // ✅ Updated CORS config
 const notifyUpcomingMeetings = require("./cron/meetingNotifier");
 const notifyScheduledFollowups = require("./cron/followupNotifier");
 const { getTenantDB } = require("./config/sequelizeManager");
 const { initializeNotificationHelper } = require("./utils/notificationHelper");
 
-// Initialize Express app
+// ================== APP INITIALIZATION ==================
 const app = express();
 const server = http.createServer(app);
 
 // ================== ✅ GLOBAL MIDDLEWARES ==================
-app.use(cors(corsOptions)); // Enable CORS before all routes
-app.options("*", cors(corsOptions)); // Handle preflight requests
 
+// ✅ Apply CORS before all routes
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // Handle preflight requests globally
+
+// JSON + Cookie parsing
 app.use(express.json());
 app.use(cookieParser());
 
-// Log all incoming requests for debugging
+// ✅ Debug Logger (Helpful for CORS + request tracking)
 app.use((req, res, next) => {
   console.log("📥 [REQUEST]");
-  console.log("Method:", req.method);
-  console.log("URL:", req.originalUrl);
-  console.log("Origin:", req.headers.origin);
+  console.log("➡️ Method:", req.method);
+  console.log("➡️ URL:", req.originalUrl);
+  console.log("➡️ Origin:", req.headers.origin);
+  console.log("➡️ Headers:", req.headers);
   next();
 });
 
-// ✅ Test route for CORS check
+// ✅ Test route for CORS verification
 app.get("/api/ping", (req, res) => {
   res.send("✅ Backend reachable! CORS working fine.");
 });
@@ -43,15 +47,15 @@ app.get("/api/ping", (req, res) => {
 const io = new Server(server, {
   cors: {
     origin: [
-      "https://crm-frontend-delta-ebon.vercel.app",
-      "http://localhost:3000",
+      "https://crm-frontend-delta-ebon.vercel.app", // Production Frontend (Vercel)
+      "http://localhost:3000", // Local development
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   },
 });
 
-// Attach Socket.io instance to requests
+// Attach Socket.io instance to every request (for real-time updates)
 app.use((req, res, next) => {
   req.io = io;
   next();
