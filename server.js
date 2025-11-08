@@ -8,56 +8,24 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cookieParser = require("cookie-parser");
 const cron = require("node-cron");
+const corsOptions = require("./corsOptions"); // ✅ import from file
 const notifyUpcomingMeetings = require("./cron/meetingNotifier");
 const notifyScheduledFollowups = require("./cron/followupNotifier");
 const { getTenantDB } = require("./config/sequelizeManager");
 const { initializeNotificationHelper } = require("./utils/notificationHelper");
 
+// Initialize Express app
 const app = express();
 const server = http.createServer(app);
 
-// ✅ Allowed frontend origins
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://crm-frontend-delta-ebon.vercel.app",
-];
+// ================== ✅ GLOBAL MIDDLEWARES ==================
+app.use(cors(corsOptions)); // Enable CORS before all routes
+app.options("*", cors(corsOptions)); // Handle preflight requests
 
-// ✅ Apply CORS globally — must come FIRST
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // Allow mobile/curl
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`❌ CORS blocked: ${origin}`);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // ✅ Preflight handler
-
-// ✅ Ensure CORS headers on all responses (extra safety)
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-    res.header("Access-Control-Allow-Credentials", "true");
-  }
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  next();
-});
-
-// ✅ Core middlewares
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ Log all requests
+// Log all incoming requests for debugging
 app.use((req, res, next) => {
   console.log("📥 [REQUEST]");
   console.log("Method:", req.method);
@@ -66,32 +34,38 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Test route
+// ✅ Test route for CORS check
 app.get("/api/ping", (req, res) => {
-  res.send("✅ Backend is reachable!");
+  res.send("✅ Backend reachable! CORS working fine.");
 });
 
-// =============== SOCKET.IO ===============
+// ================== SOCKET.IO SETUP ==================
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: [
+      "https://crm-frontend-delta-ebon.vercel.app",
+      "http://localhost:3000",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   },
 });
 
-// Attach io to request object
+// Attach Socket.io instance to requests
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
 
-// =============== ROUTES ===============
+// ================== ROUTES ==================
 const auth = require("./middleware/auth");
 const tenantResolver = require("./middleware/tenantResolver");
 
+// Master & Company routes
 app.use("/api/masteruser", require("./routes/MasterUser.routes"));
 app.use("/api/company", require("./routes/Company.routes"));
+
+// Authenticated + Tenant routes
 app.use("/api/crew", auth(), tenantResolver, require("./routes/Agents.routes"));
 app.use("/api", tenantResolver, require("./routes/User.routes"));
 app.use("/api/manager", tenantResolver, require("./routes/Manager.routes"));
@@ -286,7 +260,7 @@ app.use(
   require("./routes/Payroll.routes")
 );
 
-// =============== SOCKET & CRON SETUP ===============
+// ================== SOCKET & CRON JOBS ==================
 const connectedUsers = {};
 global.connectedUsers = connectedUsers;
 
@@ -339,18 +313,17 @@ io.on("connection", (socket) => {
   });
 });
 
+// ================== CRON JOBS ==================
 cron.schedule("* * * * *", async () => {
-  console.log("⏰ Cron job running for meeting notifications...");
+  console.log("⏰ Running scheduled notifications...");
   await notifyUpcomingMeetings();
   await notifyScheduledFollowups();
 });
 
-// =============== START SERVER ===============
+// ================== START SERVER ==================
 const PORT = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== "test") {
-  server.listen(PORT, () =>
-    console.log(`🚀 Server running on http://localhost:${PORT}`)
-  );
+  server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 }
 
 module.exports = { app };

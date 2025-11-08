@@ -1,24 +1,24 @@
+// corsOptions.js
 const allowedOrigins = [
-  "http://localhost:3000",
-  "https://crm-frontend-delta-ebon.vercel.app",
+  "https://crm-frontend-delta-ebon.vercel.app", // Production frontend
+  "http://localhost:3000", // Local development
 ];
 
 const corsOptions = {
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like Postman or curl)
+  origin: function (origin, callback) {
+    // Allow non-browser clients like Postman/cURL
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.some((allowed) => origin.startsWith(allowed))) {
-      callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     } else {
-      console.warn(`❌ CORS blocked from origin: ${origin}`);
-      callback(new Error("Not allowed by CORS"));
+      console.warn(`❌ Blocked by CORS: ${origin}`);
+      return callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  optionsSuccessStatus: 200, // Fix for legacy browsers
 };
 
 module.exports = corsOptions;
