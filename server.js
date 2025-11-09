@@ -66,203 +66,190 @@ const auth = require("./middleware/auth");
 const tenantResolver = require("./middleware/tenantResolver");
 
 // Master & Company routes
-app.use("/api/masteruser", require("./routes/MasterUser.routes"));
-app.use("/api/company", require("./routes/Company.routes"));
+app.use("/masteruser", require("./routes/MasterUser.routes"));
+app.use("/company", require("./routes/Company.routes"));
 
 // Authenticated + Tenant routes
-app.use("/api/crew", auth(), tenantResolver, require("./routes/Agents.routes"));
-app.use("/api", tenantResolver, require("./routes/User.routes"));
-app.use("/api/manager", tenantResolver, require("./routes/Manager.routes"));
-app.use("/api/hr", tenantResolver, require("./routes/Hr.routes"));
-app.use("/api/leads", auth(), tenantResolver, require("./routes/Lead.routes"));
+app.use("/crew", auth(), tenantResolver, require("./routes/Agents.routes"));
+app.use("/", tenantResolver, require("./routes/User.routes"));
+app.use("/manager", tenantResolver, require("./routes/Manager.routes"));
+app.use("/hr", tenantResolver, require("./routes/Hr.routes"));
+app.use("/leads", auth(), tenantResolver, require("./routes/Lead.routes"));
 app.use(
-  "/api/calldetails",
+  "/calldetails",
   auth(),
   tenantResolver,
   require("./routes/CallDetails.routes")
 );
 app.use(
-  "/api/meetings",
+  "/meetings",
   auth(),
   tenantResolver,
   require("./routes/Meeting.routes")
 );
 app.use(
-  "/api/opportunities",
+  "/opportunities",
   auth(),
   tenantResolver,
   require("./routes/Opportunity.routes")
 );
 app.use(
-  "/api/client-leads",
+  "/client-leads",
   auth(),
   tenantResolver,
   require("./routes/ClientLead.routes")
 );
 app.use(
-  "/api/invoice",
+  "/invoice",
   auth(),
   tenantResolver,
   require("./routes/Invoices.routes")
 );
-app.use("/api", tenantResolver, require("./routes/Chatbot.routes"));
+app.use("/", tenantResolver, require("./routes/Chatbot.routes"));
 app.use(
-  "/api/executive-activities",
+  "/executive-activities",
   auth(),
   tenantResolver,
   require("./routes/ExecutiveActivity.routes")
 );
 app.use(
-  "/api/freshleads",
+  "/freshleads",
   auth(),
   tenantResolver,
   require("./routes/FreshLead.routes")
 );
 app.use(
-  "/api/converted",
+  "/converted",
   auth(),
   tenantResolver,
   require("./routes/ConvertedClient.routes")
 );
 app.use(
-  "/api/close-leads",
+  "/close-leads",
   auth(),
   tenantResolver,
   require("./routes/CloseLead.routes")
 );
 app.use(
-  "/api/notification",
+  "/notification",
   auth(),
   tenantResolver,
   require("./routes/Notification.routes")
 );
 app.use(
-  "/api/executive-dashboard",
+  "/executive-dashboard",
   auth(),
   tenantResolver,
   require("./routes/Executivedashboard.routes")
 );
 app.use(
-  "/api/settings",
+  "/settings",
   auth(),
   tenantResolver,
   require("./routes/Settings.routes")
 );
 app.use(
-  "/api/followup",
+  "/followup",
   auth(),
   tenantResolver,
   require("./routes/Followup.routes")
 );
 app.use(
-  "/api/followuphistory",
+  "/followuphistory",
   auth(),
   tenantResolver,
   require("./routes/FollowUpHistory.routes")
 );
 app.use(
-  "/api/processperson",
+  "/processperson",
   tenantResolver,
   require("./routes/ProcessPerson.routes")
 );
-app.use("/api/customer", tenantResolver, require("./routes/Customer.routes"));
+app.use("/customer", tenantResolver, require("./routes/Customer.routes"));
+app.use("/revenue", tenantResolver, require("./routes/RevenueChart.routes"));
 app.use(
-  "/api/revenue",
-  tenantResolver,
-  require("./routes/RevenueChart.routes")
-);
-app.use(
-  "/api/customer-details",
+  "/customer-details",
   auth(),
   tenantResolver,
   require("./routes/CustomerDetails.routes")
 );
 app.use(
-  "/api/customer-stages",
+  "/customer-stages",
   auth(),
   tenantResolver,
   require("./routes/CustomerStages.routes")
 );
+app.use("/eod-report", tenantResolver, require("./routes/EodReport.routes"));
+app.use("/", auth(), tenantResolver, require("./routes/Calendar.routes"));
+app.use("/", auth(), tenantResolver, require("./routes/UserStatus.routes"));
+app.use("/", tenantResolver, require("./routes/leadCheck.routes"));
+app.use("/", tenantResolver, require("./routes/Eod.routes"));
 app.use(
-  "/api/eod-report",
-  tenantResolver,
-  require("./routes/EodReport.routes")
-);
-app.use("/api", auth(), tenantResolver, require("./routes/Calendar.routes"));
-app.use("/api", auth(), tenantResolver, require("./routes/UserStatus.routes"));
-app.use("/api", tenantResolver, require("./routes/leadCheck.routes"));
-app.use("/api", tenantResolver, require("./routes/Eod.routes"));
-app.use(
-  "/api/customer",
+  "/customer",
   tenantResolver,
   require("./routes/CustomerDocuments.routes")
 );
 app.use(
-  "/api/template",
+  "/template",
   auth(),
   tenantResolver,
   require("./routes/EmailTemplate.routes")
 );
 app.use(
-  "/api/process-history",
+  "/process-history",
   auth(),
   tenantResolver,
   require("./routes/ProcessFollowupHistory.routes")
 );
 app.use(
-  "/api/role-permissions",
+  "/role-permissions",
   auth(),
   tenantResolver,
   require("./routes/RolePermission.routes")
 );
 app.use(
-  "/api/processed",
+  "/processed",
   auth(),
   tenantResolver,
   require("./routes/ProcessedFinal.routes")
 );
 app.use(
-  "/api/process-person-activities",
+  "/process-person-activities",
   auth(),
   tenantResolver,
   require("./routes/ProcessPersonActivity.routes")
 );
 app.use(
-  "/api/manager-activities",
+  "/manager-activities",
   auth(),
   tenantResolver,
   require("./routes/ManagerActivity.routes")
 );
 app.use(
-  "/api/hr-activities",
+  "/hr-activities",
   auth(),
   tenantResolver,
   require("./routes/HrActivity.routes")
 );
 app.use(
-  "/api/leave",
+  "/leave",
   auth(),
   tenantResolver,
   require("./routes/LeaveApplication.routes")
 );
 app.use(
-  "/api/organization",
+  "/organization",
   auth(),
   tenantResolver,
   require("./routes/Organisation.routes")
 );
 app.use(
-  "/api/schedule",
+  "/schedule",
   auth(),
   tenantResolver,
   require("./routes/FollowupNotification.routes")
 );
-app.use(
-  "/api/payroll",
-  auth(),
-  tenantResolver,
-  require("./routes/Payroll.routes")
-);
+app.use("/payroll", auth(), tenantResolver, require("./routes/Payroll.routes"));
 
 // ================== SOCKET & CRON JOBS ==================
 const connectedUsers = {};
