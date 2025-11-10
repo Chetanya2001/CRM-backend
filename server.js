@@ -146,11 +146,6 @@ publicTenantRoutes.forEach(([path, route]) => {
   app.use(`/api/${path}`, tenantResolver, route);
 });
 
-// ---- Public Executive Route ----
-// ✅ Allow preflight + normal request
-app.options("/api/create-executive", cors(corsOptions));
-app.use("/api", require("./routes/Executive.routes")); // your create-executive route
-
 // ================== ⚡ SOCKET EVENTS ==================
 const connectedUsers = {};
 global.connectedUsers = connectedUsers;
