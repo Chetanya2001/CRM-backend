@@ -15,6 +15,7 @@ const { getTenantDB } = require("./config/sequelizeManager");
 const { initializeNotificationHelper } = require("./utils/notificationHelper");
 const notifyUpcomingMeetings = require("./cron/meetingNotifier");
 const notifyScheduledFollowups = require("./cron/followupNotifier");
+const { syncDatabase } = require("./utils/syncDatabase");
 
 const auth = require("./middleware/auth");
 const tenantResolver = require("./middleware/tenantResolver");
@@ -25,15 +26,21 @@ const server = http.createServer(app);
 
 // ================== ⚙️ GLOBAL MIDDLEWARES ==================
 
-// ✅ Enable CORS globally (with OPTIONS preflight)
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+// ✅ Allow all CORS headers and handle preflight manually
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Access-Control-Allow-Methods", "*");
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+  next();
+});
 
 // ✅ Body & cookie parser
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ Debug request logger (optional for development)
+// ✅ Debug request logger
 app.use((req, res, next) => {
   console.log("📥 [REQUEST]", {
     method: req.method,
@@ -43,7 +50,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Simple health check route
+// ✅ Simple health check
 app.get("/api/ping", (req, res) => {
   res.send("✅ Backend reachable! CORS working fine.");
 });
@@ -52,8 +59,8 @@ app.get("/api/ping", (req, res) => {
 const io = new Server(server, {
   cors: {
     origin: [
-      "https://crm-frontend-delta-ebon.vercel.app", // Production frontend
-      "http://localhost:3000", // Local development
+      "https://crm-frontend-delta-ebon.vercel.app",
+      "http://localhost:3000",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
@@ -108,13 +115,12 @@ const protectedRoutes = [
   ["close-leads", require("./routes/CloseLead.routes")],
 ];
 
-// ✅ Ensure all protected routes allow preflight (OPTIONS)
+// ✅ Enable OPTIONS for each protected route
 protectedRoutes.forEach(([path, route]) => {
-  app.options(`/api/${path}`, cors(corsOptions)); // Allow OPTIONS
+  app.options(`/api/${path}`, cors(corsOptions));
   app.use(
     `/api/${path}`,
     (req, res, next) => {
-      // 🧩 Skip auth for preflight requests
       if (req.method === "OPTIONS") return res.sendStatus(200);
       next();
     },
@@ -142,7 +148,7 @@ const publicTenantRoutes = [
 ];
 
 publicTenantRoutes.forEach(([path, route]) => {
-  app.options(`/api/${path}`, cors(corsOptions)); // Allow OPTIONS
+  app.options(`/api/${path}`, cors(corsOptions));
   app.use(`/api/${path}`, tenantResolver, route);
 });
 
@@ -207,8 +213,14 @@ cron.schedule("* * * * *", async () => {
 
 // ================== 🧠 START SERVER ==================
 const PORT = process.env.PORT || 5000;
-if (process.env.NODE_ENV !== "test") {
-  server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-}
+
+(async () => {
+  // ✅ Auto-sync tenant databases on deployment
+  await syncDatabase();
+
+  if (process.env.NODE_ENV !== "test") {
+    server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+  }
+})();
 
 module.exports = { app };
