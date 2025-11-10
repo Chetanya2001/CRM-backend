@@ -1,3 +1,4 @@
+// ================== 🌍 ENV & CRON SETUP ==================
 require("dotenv").config();
 require("./cron/notificationCleaner");
 require("./cron/blacklistExpired");
@@ -8,46 +9,50 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cookieParser = require("cookie-parser");
 const cron = require("node-cron");
-const corsOptions = require("./utils/corsOption"); // ✅ Updated CORS config
-const notifyUpcomingMeetings = require("./cron/meetingNotifier");
-const notifyScheduledFollowups = require("./cron/followupNotifier");
+
+const corsOptions = require("./utils/corsOption");
 const { getTenantDB } = require("./config/sequelizeManager");
 const { initializeNotificationHelper } = require("./utils/notificationHelper");
+const notifyUpcomingMeetings = require("./cron/meetingNotifier");
+const notifyScheduledFollowups = require("./cron/followupNotifier");
 
-// ================== APP INITIALIZATION ==================
+const auth = require("./middleware/auth");
+const tenantResolver = require("./middleware/tenantResolver");
+
+// ================== 🚀 APP & SERVER INIT ==================
 const app = express();
 const server = http.createServer(app);
 
-// ================== ✅ GLOBAL MIDDLEWARES ==================
+// ================== ⚙️ GLOBAL MIDDLEWARES ==================
 
-// ✅ Apply CORS before all routes
+// ✅ Enable CORS globally (with OPTIONS preflight)
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // Handle preflight requests globally
+app.options("*", cors(corsOptions));
 
-// JSON + Cookie parsing
+// ✅ Body & cookie parser
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ Debug Logger (Helpful for CORS + request tracking)
+// ✅ Debug request logger (optional for development)
 app.use((req, res, next) => {
-  console.log("📥 [REQUEST]");
-  console.log("➡️ Method:", req.method);
-  console.log("➡️ URL:", req.originalUrl);
-  console.log("➡️ Origin:", req.headers.origin);
-  console.log("➡️ Headers:", req.headers);
+  console.log("📥 [REQUEST]", {
+    method: req.method,
+    url: req.originalUrl,
+    origin: req.headers.origin,
+  });
   next();
 });
 
-// ✅ Test route for CORS verification
+// ✅ Simple health check route
 app.get("/api/ping", (req, res) => {
   res.send("✅ Backend reachable! CORS working fine.");
 });
 
-// ================== SOCKET.IO SETUP ==================
+// ================== 🔌 SOCKET.IO SETUP ==================
 const io = new Server(server, {
   cors: {
     origin: [
-      "https://crm-frontend-delta-ebon.vercel.app", // Production Frontend (Vercel)
+      "https://crm-frontend-delta-ebon.vercel.app", // Production frontend
       "http://localhost:3000", // Local development
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -55,223 +60,88 @@ const io = new Server(server, {
   },
 });
 
-// Attach Socket.io instance to every request (for real-time updates)
+// Attach socket instance to each request
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
 
-// ================== ROUTES ==================
-const auth = require("./middleware/auth");
-const tenantResolver = require("./middleware/tenantResolver");
+// ================== 📁 ROUTE MOUNTING ==================
 
-// Master & Company routes
+// ---- Master & Company Routes ----
 app.use("/api/masteruser", require("./routes/MasterUser.routes"));
 app.use("/api/company", require("./routes/Company.routes"));
 
-// Authenticated + Tenant routes
-app.use("/api/crew", auth(), tenantResolver, require("./routes/Agents.routes"));
-app.use("/api/", tenantResolver, require("./routes/User.routes"));
-app.use("/api/manager", tenantResolver, require("./routes/Manager.routes"));
-app.use("/api/hr", tenantResolver, require("./routes/Hr.routes"));
-app.use("/api/leads", auth(), tenantResolver, require("./routes/Lead.routes"));
-app.use(
-  "/api/calldetails",
-  auth(),
-  tenantResolver,
-  require("./routes/CallDetails.routes")
-);
-app.use(
-  "/api/meetings",
-  auth(),
-  tenantResolver,
-  require("./routes/Meeting.routes")
-);
-app.use(
-  "/api/opportunities",
-  auth(),
-  tenantResolver,
-  require("./routes/Opportunity.routes")
-);
-app.use(
-  "/api/client-leads",
-  auth(),
-  tenantResolver,
-  require("./routes/ClientLead.routes")
-);
-app.use(
-  "/api/invoice",
-  auth(),
-  tenantResolver,
-  require("./routes/Invoices.routes")
-);
-app.use("/api/", tenantResolver, require("./routes/Chatbot.routes"));
-app.use(
-  "/api/executive-activities",
-  auth(),
-  tenantResolver,
-  require("./routes/ExecutiveActivity.routes")
-);
-app.use(
-  "/api/freshleads",
-  auth(),
-  tenantResolver,
-  require("./routes/FreshLead.routes")
-);
-app.use(
-  "/api/converted",
-  auth(),
-  tenantResolver,
-  require("./routes/ConvertedClient.routes")
-);
-app.use(
-  "/api/close-leads",
-  auth(),
-  tenantResolver,
-  require("./routes/CloseLead.routes")
-);
-app.use(
-  "/api/notification",
-  auth(),
-  tenantResolver,
-  require("./routes/Notification.routes")
-);
-app.use(
-  "/api/executive-dashboard",
-  auth(),
-  tenantResolver,
-  require("./routes/Executivedashboard.routes")
-);
-app.use(
-  "/api/settings",
-  auth(),
-  tenantResolver,
-  require("./routes/Settings.routes")
-);
-app.use(
-  "/api/followup",
-  auth(),
-  tenantResolver,
-  require("./routes/Followup.routes")
-);
-app.use(
-  "/api/followuphistory",
-  auth(),
-  tenantResolver,
-  require("./routes/FollowUpHistory.routes")
-);
-app.use(
-  "/api/processperson",
-  tenantResolver,
-  require("./routes/ProcessPerson.routes")
-);
-app.use("/api/customer", tenantResolver, require("./routes/Customer.routes"));
-app.use(
-  "/api/revenue",
-  tenantResolver,
-  require("./routes/RevenueChart.routes")
-);
-app.use(
-  "/api/customer-details",
-  auth(),
-  tenantResolver,
-  require("./routes/CustomerDetails.routes")
-);
-app.use(
-  "/api/customer-stages",
-  auth(),
-  tenantResolver,
-  require("./routes/CustomerStages.routes")
-);
-app.use(
-  "/api/eod-report",
-  tenantResolver,
-  require("./routes/EodReport.routes")
-);
-app.use("/api/", auth(), tenantResolver, require("./routes/Calendar.routes"));
-app.use("/api/", auth(), tenantResolver, require("./routes/UserStatus.routes"));
-app.use("/api/", tenantResolver, require("./routes/leadCheck.routes"));
-app.use("/api/", tenantResolver, require("./routes/Eod.routes"));
-app.use(
-  "/api/customer",
-  tenantResolver,
-  require("./routes/CustomerDocuments.routes")
-);
-app.use(
-  "/api/template",
-  auth(),
-  tenantResolver,
-  require("./routes/EmailTemplate.routes")
-);
-app.use(
-  "/api/process-history",
-  auth(),
-  tenantResolver,
-  require("./routes/ProcessFollowupHistory.routes")
-);
-app.use(
-  "/api/role-permissions",
-  auth(),
-  tenantResolver,
-  require("./routes/RolePermission.routes")
-);
-app.use(
-  "/api/processed",
-  auth(),
-  tenantResolver,
-  require("./routes/ProcessedFinal.routes")
-);
-app.use(
-  "/api/process-person-activities",
-  auth(),
-  tenantResolver,
-  require("./routes/ProcessPersonActivity.routes")
-);
-app.use(
-  "/api/manager-activities",
-  auth(),
-  tenantResolver,
-  require("./routes/ManagerActivity.routes")
-);
-app.use(
-  "/api/hr-activities",
-  auth(),
-  tenantResolver,
-  require("./routes/HrActivity.routes")
-);
-app.use(
-  "/api/leave",
-  auth(),
-  tenantResolver,
-  require("./routes/LeaveApplication.routes")
-);
-app.use(
-  "/api/organization",
-  auth(),
-  tenantResolver,
-  require("./routes/Organisation.routes")
-);
-app.use(
-  "/api/schedule",
-  auth(),
-  tenantResolver,
-  require("./routes/FollowupNotification.routes")
-);
-app.use(
-  "/api/payroll",
-  auth(),
-  tenantResolver,
-  require("./routes/Payroll.routes")
-);
+// ---- Authenticated Tenant Routes ----
+const protectedRoutes = [
+  ["crew", require("./routes/Agents.routes")],
+  ["leads", require("./routes/Lead.routes")],
+  ["calldetails", require("./routes/CallDetails.routes")],
+  ["meetings", require("./routes/Meeting.routes")],
+  ["opportunities", require("./routes/Opportunity.routes")],
+  ["client-leads", require("./routes/ClientLead.routes")],
+  ["invoice", require("./routes/Invoices.routes")],
+  ["notification", require("./routes/Notification.routes")],
+  ["executive-dashboard", require("./routes/Executivedashboard.routes")],
+  ["settings", require("./routes/Settings.routes")],
+  ["followup", require("./routes/Followup.routes")],
+  ["followuphistory", require("./routes/FollowUpHistory.routes")],
+  ["customer-details", require("./routes/CustomerDetails.routes")],
+  ["customer-stages", require("./routes/CustomerStages.routes")],
+  ["template", require("./routes/EmailTemplate.routes")],
+  ["process-history", require("./routes/ProcessFollowupHistory.routes")],
+  ["role-permissions", require("./routes/RolePermission.routes")],
+  ["processed", require("./routes/ProcessedFinal.routes")],
+  [
+    "process-person-activities",
+    require("./routes/ProcessPersonActivity.routes"),
+  ],
+  ["manager-activities", require("./routes/ManagerActivity.routes")],
+  ["hr-activities", require("./routes/HrActivity.routes")],
+  ["leave", require("./routes/LeaveApplication.routes")],
+  ["organization", require("./routes/Organisation.routes")],
+  ["schedule", require("./routes/FollowupNotification.routes")],
+  ["payroll", require("./routes/Payroll.routes")],
+  ["executive-activities", require("./routes/ExecutiveActivity.routes")],
+  ["freshleads", require("./routes/FreshLead.routes")],
+  ["converted", require("./routes/ConvertedClient.routes")],
+  ["close-leads", require("./routes/CloseLead.routes")],
+];
 
-// ================== SOCKET & CRON JOBS ==================
+// Mount all protected tenant routes with auth + tenantResolver
+protectedRoutes.forEach(([path, route]) => {
+  app.use(`/api/${path}`, auth(), tenantResolver, route);
+});
+
+// ---- Non-auth Tenant Routes ----
+const publicTenantRoutes = [
+  ["", require("./routes/User.routes")],
+  ["manager", require("./routes/Manager.routes")],
+  ["hr", require("./routes/Hr.routes")],
+  ["processperson", require("./routes/ProcessPerson.routes")],
+  ["customer", require("./routes/Customer.routes")],
+  ["revenue", require("./routes/RevenueChart.routes")],
+  ["eod-report", require("./routes/EodReport.routes")],
+  ["", require("./routes/Chatbot.routes")],
+  ["", require("./routes/Calendar.routes")],
+  ["", require("./routes/UserStatus.routes")],
+  ["", require("./routes/leadCheck.routes")],
+  ["", require("./routes/Eod.routes")],
+  ["customer", require("./routes/CustomerDocuments.routes")],
+];
+
+publicTenantRoutes.forEach(([path, route]) => {
+  app.use(`/api/${path}`, tenantResolver, route);
+});
+
+// ================== ⚡ SOCKET EVENTS ==================
 const connectedUsers = {};
 global.connectedUsers = connectedUsers;
 
 initializeNotificationHelper(io, connectedUsers);
 
 io.on("connection", (socket) => {
-  console.log("🟢 New socket connection:", socket.id);
+  console.log("🟢 Socket connected:", socket.id);
 
   socket.on("set_user", async ({ userId, companyId }) => {
     try {
@@ -300,7 +170,6 @@ io.on("connection", (socket) => {
     const { userId, companyId } = socket;
     if (userId && companyId) {
       delete connectedUsers[userId];
-
       try {
         const tenantDB = await getTenantDB(companyId);
         await tenantDB.Users.update(
@@ -317,14 +186,14 @@ io.on("connection", (socket) => {
   });
 });
 
-// ================== CRON JOBS ==================
+// ================== ⏰ CRON JOBS ==================
 cron.schedule("* * * * *", async () => {
   console.log("⏰ Running scheduled notifications...");
   await notifyUpcomingMeetings();
   await notifyScheduledFollowups();
 });
 
-// ================== START SERVER ==================
+// ================== 🧠 START SERVER ==================
 const PORT = process.env.PORT || 5000;
 if (process.env.NODE_ENV !== "test") {
   server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
