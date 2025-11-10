@@ -108,9 +108,20 @@ const protectedRoutes = [
   ["close-leads", require("./routes/CloseLead.routes")],
 ];
 
-// Mount all protected tenant routes with auth + tenantResolver
+// ✅ Ensure all protected routes allow preflight (OPTIONS)
 protectedRoutes.forEach(([path, route]) => {
-  app.use(`/api/${path}`, auth(), tenantResolver, route);
+  app.options(`/api/${path}`, cors(corsOptions)); // Allow OPTIONS
+  app.use(
+    `/api/${path}`,
+    (req, res, next) => {
+      // 🧩 Skip auth for preflight requests
+      if (req.method === "OPTIONS") return res.sendStatus(200);
+      next();
+    },
+    auth(),
+    tenantResolver,
+    route
+  );
 });
 
 // ---- Non-auth Tenant Routes ----
@@ -131,8 +142,14 @@ const publicTenantRoutes = [
 ];
 
 publicTenantRoutes.forEach(([path, route]) => {
+  app.options(`/api/${path}`, cors(corsOptions)); // Allow OPTIONS
   app.use(`/api/${path}`, tenantResolver, route);
 });
+
+// ---- Public Executive Route ----
+// ✅ Allow preflight + normal request
+app.options("/api/create-executive", cors(corsOptions));
+app.use("/api", require("./routes/Executive.routes")); // your create-executive route
 
 // ================== ⚡ SOCKET EVENTS ==================
 const connectedUsers = {};
