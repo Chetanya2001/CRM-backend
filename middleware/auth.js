@@ -5,21 +5,23 @@ const publicPaths = ["/api/masteruser/login", "/api/masteruser/signup"];
 
 const auth = (roles = []) => {
   return (req, res, next) => {
-    // DEV LOG
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`🔐 [AUTH] Request: ${req.method} ${req.originalUrl}`);
-    }
+    // ✅ Always set CORS headers
+    res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-company-id"
+    );
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, OPTIONS"
+    );
 
-    // ✅ Check if the request should bypass auth
+    // 🪪 Skip for public routes
     const skipAuth = publicPaths.some((path) =>
       req.originalUrl.startsWith(path)
     );
-    if (skipAuth) {
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`🔓 [AUTH] Bypassed for public route: ${req.originalUrl}`);
-      }
-      return next();
-    }
+    if (skipAuth) return next();
 
     let token;
     const authHeader = req.headers.authorization;
@@ -33,9 +35,7 @@ const auth = (roles = []) => {
     }
 
     if (!token) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("⛔ [AUTH] No token provided");
-      }
+      console.warn("⛔ [AUTH] No token provided");
       return res
         .status(401)
         .json({ message: "Access denied. No token provided." });
