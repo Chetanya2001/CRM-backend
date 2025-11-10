@@ -1,29 +1,16 @@
-// utils/corsOption.js
-const allowedOrigins = [
-  "https://crm-frontend-delta-ebon.vercel.app", // production
-  "http://localhost:3000", // dev
-];
-
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log("❌ Blocked by CORS:", origin);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
+  origin: [
+    "https://crm-frontend-delta-ebon.vercel.app",
+    "http://localhost:3000",
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: [
     "Content-Type",
     "Authorization",
-    "x-company-id",
+    "Cache-Control",
     "X-Requested-With",
-    "Accept",
-    "Origin",
   ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  optionsSuccessStatus: 200,
+  credentials: true,
 };
 
-module.exports = corsOptions;
+app.use(cors(corsOptions));
