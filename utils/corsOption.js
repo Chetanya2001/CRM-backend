@@ -1,3 +1,4 @@
+// utils/corsOption.js
 const corsOptions = {
   origin: [
     "https://crm-frontend-delta-ebon.vercel.app",
@@ -13,4 +14,4 @@ const corsOptions = {
   credentials: true,
 };
 
-app.use(cors(corsOptions));
+module.exports = corsOptions;
